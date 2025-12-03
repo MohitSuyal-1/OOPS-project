@@ -1,0 +1,8 @@
+pnr,name,age,trainNo,trainName,classType,seatNo,fare,departure
+783026,mohit,18,12301,KK Express,2A,1,1500,09:30
+706967,Jayendra,18,12401,NDD Express,2A,1,1500,17:30
+596843,ram,65,12401,NDD Express,2A,2,1500,17:30
+222307,Mohit,19,15013,Ranikhet Express,1A,1,2000,20:35
+131603,raaju,18,12209,Kanpur Garib Rath,3E,1,900,22:15
+963749,Gaurav Da,18,15013,Ranikhet Express,2A,1,1500,20:35
+756469,gaurav da,18,12209,Kanpur Garib Rath,3E,2,900,22:15

@@ -11,11 +11,9 @@
 
 DataManager g_dataManager;
 
-int g_currentPage = 1; // 1-7
+int g_currentPage = 1; // pages: 1–6
 
-// Buffers for inputs
-char g_fromBuf[256] = "";
-char g_toBuf[256] = "";
+// Buffers
 char g_nameSearchBuf[256] = "";
 char g_trainNoAvailBuf[256] = "";
 char g_passengerNameBuf[256] = "";
@@ -23,7 +21,7 @@ char g_ageBuf[10] = "18";
 char g_pnrViewBuf[256] = "";
 char g_pnrCancelBuf[256] = "";
 
-// For selections
+// Train selection
 int g_selectedTrainIdx = -1;
 int g_selectedClassIdx = -1;
 std::vector<std::string> g_trainList;
@@ -31,7 +29,7 @@ std::vector<std::string> g_classList;
 
 // Results
 std::vector<Train> g_searchResults;
-std::vector<Train> g_availResults; // for availability table
+std::vector<Train> g_availResults;
 std::vector<Booking> g_bookingResults;
 
 // Messages
@@ -39,11 +37,10 @@ std::string g_message = "";
 ImVec4 g_msgColor = ImVec4(1, 1, 1, 1);
 bool g_showMsgPopup = false;
 
-// Forward declarations
+// Functions
 void showMessagePopup(const std::string& msg, const ImVec4& color);
 void SetupImGuiStyle();
 
-// Populate helpers
 void PopulateTrainList() {
     g_trainList.clear();
     for (const auto& t : g_dataManager.trains()) {
@@ -54,52 +51,45 @@ void PopulateTrainList() {
 void UpdateClassListForTrain(int trainIdx) {
     if (trainIdx < 0) return;
     g_classList.clear();
-    auto& classes = g_dataManager.trains()[trainIdx].classes;
-    for (const auto& c : classes) {
+    for (const auto& c : g_dataManager.trains()[trainIdx].classes) {
         g_classList.push_back(c);
     }
     g_selectedClassIdx = -1;
 }
 
-int main(int argc, char* argv[]) {
-    // Init SDL
+int main(int, char**) {
+    // SDL Init
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
-        printf("Error: %s\n", SDL_GetError());
+        printf("SDL Error: %s\n", SDL_GetError());
         return -1;
     }
 
-    // GL attributes
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
+    // GL settings
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 
-    // Create window (fullscreen)
-    SDL_DisplayMode current;
-    SDL_GetCurrentDisplayMode(0, &current);
-    SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN);
-    SDL_Window* window = SDL_CreateWindow("Ticket Reservation System",
-                                          SDL_WINDOWPOS_CENTERED,
-                                          SDL_WINDOWPOS_CENTERED,
-                                          current.w,
-                                          current.h,
-                                          window_flags);
+    SDL_DisplayMode dm;
+    SDL_GetCurrentDisplayMode(0, &dm);
+
+    SDL_Window* window = SDL_CreateWindow(
+        "Ticket Reservation System",
+        SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED,
+        dm.w, dm.h,
+        SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN);
 
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
     SDL_GL_MakeCurrent(window, gl_context);
-    SDL_GL_SetSwapInterval(1); // vsync
+    SDL_GL_SetSwapInterval(1);
 
-    // Init ImGui
+    // ImGui Init
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-
-    // Increase global font size a bit
+    ImGuiIO& io = ImGui::GetIO();
     io.FontGlobalScale = 1.2f;
 
-    // Custom theme (colors, rounding, etc.)
     SetupImGuiStyle();
-
     ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init("#version 130");
 
@@ -110,511 +100,407 @@ int main(int argc, char* argv[]) {
     g_dataManager.loadBookings();
     PopulateTrainList();
 
-    // Main loop
     bool done = false;
     while (!done) {
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            ImGui_ImplSDL2_ProcessEvent(&event);
-            if (event.type == SDL_QUIT)
-                done = true;
+        SDL_Event e;
+        while (SDL_PollEvent(&e)) {
+            ImGui_ImplSDL2_ProcessEvent(&e);
+            if (e.type == SDL_QUIT) done = true;
         }
 
-        // Start ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-        // Full screen main window
-        ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->Pos);
-        ImGui::SetNextWindowSize(viewport->Size);
+        // Main UI window full screen
+        ImGuiViewport* vp = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(vp->Pos);
+        ImGui::SetNextWindowSize(vp->Size);
+
         ImGui::Begin("Main",
                      nullptr,
-                     ImGuiWindowFlags_NoTitleBar
-                     | ImGuiWindowFlags_NoCollapse
-                     | ImGuiWindowFlags_NoResize
-                     | ImGuiWindowFlags_NoMove
-                     | ImGuiWindowFlags_NoBringToFrontOnFocus);
+                     ImGuiWindowFlags_NoTitleBar |
+                     ImGuiWindowFlags_NoResize |
+                     ImGuiWindowFlags_NoMove);
 
-        // ======= TOP HEADER BAR =======
+        // HEADER
         {
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.07f, 0.09f, 0.18f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.07f, 0.09f, 0.18f, 1));
+            ImGui::BeginChild("Header", ImVec2(0, 70), true);
 
-            ImGui::BeginChild("HeaderBar", ImVec2(0, 70), true);
-
-            ImGui::TextColored(ImVec4(0.3f, 0.8f, 1.0f, 1.0f),
-                               "Ticket Reservation System");
-            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1), "Ticket Reservation System");
             ImGui::TextDisabled("Smart Reservation Panel");
 
             ImGui::EndChild();
             ImGui::PopStyleColor();
-            ImGui::PopStyleVar();
         }
 
         ImGui::Spacing();
 
-        // ======= MAIN BODY (Sidebar + Content) =======
+        // LAYOUT
         float sidebarWidth = 260.0f;
-        float footerHeight = ImGui::GetFrameHeightWithSpacing() + 6.0f;
+        float footerHeight = 40;
 
-        // Sidebar
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.08f, 0.10f, 0.18f, 1.0f));
+        // SIDEBAR
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.08f, 0.10f, 0.18f, 1));
         ImGui::BeginChild("Sidebar",
-                          ImVec2(sidebarWidth, viewport->Size.y - 80.0f - footerHeight),
+                          ImVec2(sidebarWidth, vp->Size.y - 110),
                           true);
 
-        ImGui::SeparatorText("  MENU  ");
+        ImGui::SeparatorText(" MENU ");
 
-        ImGui::Spacing();
-        auto menuButton = [](const char* label, int page) {
+        auto menuButton = [&](const char* txt, int page) {
             bool active = (g_currentPage == page);
             if (active) {
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.36f, 0.72f, 1.0f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25f, 0.45f, 0.85f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.24f, 0.48f, 0.82f, 1));
             }
-            if (ImGui::Button(label, ImVec2(-1, 0))) {
+
+            if (ImGui::Button(txt, ImVec2(-1, 0))) {
                 g_currentPage = page;
             }
-            if (active) {
-                ImGui::PopStyleColor(2);
-            }
+
+            if (active) ImGui::PopStyleColor();
         };
 
         menuButton("All Trains",        1);
-        menuButton("Search Route",      2);
-        menuButton("Search by Name",    3);
-        menuButton("Seat Availability", 4);
-        menuButton("Book Ticket",       5);
-        menuButton("View Ticket",       6);
-        menuButton("Cancel Ticket",     7);
+        menuButton("Search by Name",    2);
+        menuButton("Seat Availability", 3);
+        menuButton("Book Ticket",       4);
+        menuButton("View Ticket",       5);
+        menuButton("Cancel Ticket",     6);
 
-        ImGui::Spacing();
         ImGui::Separator();
         ImGui::TextDisabled("Passenger Safety Tips:");
-        ImGui::BulletText("Keep your luggage with you at all times.");
-        ImGui::BulletText("Do not share your PNR or ID with strangers.");
-        ImGui::BulletText("Verify coach and seat number before boarding.");
+        ImGui::BulletText("Keep luggage with you always.");
+        ImGui::BulletText("Do not share PNR with strangers.");
+        ImGui::BulletText("Verify coach & seat before boarding.");
 
         ImGui::EndChild();
         ImGui::PopStyleColor();
 
         ImGui::SameLine();
 
-        // Content area
-        ImGui::BeginChild("Content",
-                          ImVec2(0, viewport->Size.y - 80.0f - footerHeight),
-                          true);
+        // CONTENT AREA
+        ImGui::BeginChild("Content", ImVec2(0, vp->Size.y - 110), true);
 
+        // ================= PAGES =====================
         switch (g_currentPage) {
-            case 1: {
-                ImGui::SeparatorText("  ALL TRAINS  ");
 
-                if (ImGui::Button("Reload Trains from CSV")) {
-                    if (g_dataManager.loadTrains()) {
-                        PopulateTrainList();
-                        showMessagePopup("Train list reloaded from CSV.", ImVec4(0.3f, 1.0f, 0.3f, 1.0f));
-                    } else {
-                        showMessagePopup("Failed to load train.csv", ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
-                    }
+        // PAGE 1 – ALL TRAINS
+        case 1: {
+            ImGui::SeparatorText(" ALL TRAINS ");
+
+            if (ImGui::Button("Reload CSV")) {
+                if (g_dataManager.loadTrains()) {
+                    PopulateTrainList();
+                    showMessagePopup("Reloaded trains from CSV.", ImVec4(0.2f, 1, 0.2f, 1));
+                }
+            }
+
+            if (ImGui::BeginTable("TrainTable", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+                ImGui::TableSetupColumn("Train No");
+                ImGui::TableSetupColumn("Train Name");
+                ImGui::TableSetupColumn("From");
+                ImGui::TableSetupColumn("To");
+                ImGui::TableSetupColumn("Arrival");
+                ImGui::TableSetupColumn("Departure");
+                ImGui::TableSetupColumn("Classes");
+                ImGui::TableHeadersRow();
+
+                for (auto& t : g_dataManager.trains()) {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn(); ImGui::Text("%s", t.trainNo.c_str());
+                    ImGui::TableNextColumn(); ImGui::Text("%s", t.trainName.c_str());
+                    ImGui::TableNextColumn(); ImGui::Text("%s", t.from.c_str());
+                    ImGui::TableNextColumn(); ImGui::Text("%s", t.to.c_str());
+                    ImGui::TableNextColumn(); ImGui::Text("%s", t.arr.c_str());
+                    ImGui::TableNextColumn(); ImGui::Text("%s", t.dep.c_str());
+
+                    ImGui::TableNextColumn();
+                    std::string cls;
+                    for (auto& c : t.classes) { cls += c + " "; }
+                    ImGui::Text("%s", cls.c_str());
                 }
 
-                ImGui::Spacing();
+                ImGui::EndTable();
+            }
+        } break;
 
-                static ImGuiTableFlags flags =
-                    ImGuiTableFlags_Borders
-                    | ImGuiTableFlags_RowBg
-                    | ImGuiTableFlags_Resizable
-                    | ImGuiTableFlags_SizingStretchProp;
+        // PAGE 2 – SEARCH BY NAME
+        case 2: {
+            ImGui::SeparatorText(" SEARCH BY TRAIN NAME ");
 
-                if (ImGui::BeginTable("TrainsTable", 7, flags)) {
-                    ImGui::TableSetupColumn("Train No", ImGuiTableColumnFlags_WidthFixed, 80.0f);
-                    ImGui::TableSetupColumn("Train Name");
-                    ImGui::TableSetupColumn("From", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-                    ImGui::TableSetupColumn("To", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-                    ImGui::TableSetupColumn("Arrival", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-                    ImGui::TableSetupColumn("Departure", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-                    ImGui::TableSetupColumn("Classes");
+            ImGui::InputText("Train Name", g_nameSearchBuf, 256);
+
+            if (ImGui::Button("Search")) {
+                g_searchResults = g_dataManager.searchTrainsByName(g_nameSearchBuf);
+                if (g_searchResults.empty()) {
+                    showMessagePopup("No trains found.", ImVec4(1, 0.4f, 0.3f, 1));
+                }
+            }
+
+            if (ImGui::BeginTable("NameSearch", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+                ImGui::TableSetupColumn("Train No");
+                ImGui::TableSetupColumn("Name");
+                ImGui::TableSetupColumn("From");
+                ImGui::TableSetupColumn("To");
+                ImGui::TableSetupColumn("Arrival");
+                ImGui::TableSetupColumn("Departure");
+                ImGui::TableSetupColumn("Classes");
+                ImGui::TableHeadersRow();
+
+                for (auto& t : g_searchResults) {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn(); ImGui::Text("%s", t.trainNo.c_str());
+                    ImGui::TableNextColumn(); ImGui::Text("%s", t.trainName.c_str());
+                    ImGui::TableNextColumn(); ImGui::Text("%s", t.from.c_str());
+                    ImGui::TableNextColumn(); ImGui::Text("%s", t.to.c_str());
+                    ImGui::TableNextColumn(); ImGui::Text("%s", t.arr.c_str());
+                    ImGui::TableNextColumn(); ImGui::Text("%s", t.dep.c_str());
+
+                    std::string cls;
+                    for (auto& c : t.classes) cls += c + " ";
+                    ImGui::TableNextColumn(); ImGui::Text("%s", cls.c_str());
+                }
+
+                ImGui::EndTable();
+            }
+        } break;
+
+        // PAGE 3 – SEAT AVAILABILITY
+        case 3: {
+            ImGui::SeparatorText(" SEAT AVAILABILITY ");
+
+            ImGui::InputText("Train Number", g_trainNoAvailBuf, 256);
+            if (ImGui::Button("Check")) {
+                const Train* t = g_dataManager.findTrainByNumber(g_trainNoAvailBuf);
+                if (t) {
+                    g_availResults = { *t };
+                } else {
+                    g_availResults.clear();
+                    showMessagePopup("Train not found.", ImVec4(1, 0.4f, 0.3f, 1));
+                }
+            }
+
+            if (!g_availResults.empty()) {
+                auto& t = g_availResults[0];
+
+                ImGui::Text("Train: %s - %s", t.trainNo.c_str(), t.trainName.c_str());
+                ImGui::Text("Route: %s -> %s", t.from.c_str(), t.to.c_str());
+                ImGui::Text("Departure: %s", t.dep.c_str());
+
+                if (ImGui::BeginTable("Avail", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+                    ImGui::TableSetupColumn("Class");
+                    ImGui::TableSetupColumn("Total");
+                    ImGui::TableSetupColumn("Booked");
+                    ImGui::TableSetupColumn("Available");
+                    ImGui::TableSetupColumn("Fare");
                     ImGui::TableHeadersRow();
 
-                    for (const auto& train : g_dataManager.trains()) {
-                        ImGui::TableNextRow();
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.trainNo.c_str());
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.trainName.c_str());
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.from.c_str());
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.to.c_str());
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.arr.c_str());
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.dep.c_str());
+                    for (auto& cls : t.classes) {
+                        int total = g_dataManager.seatCapacity().at(cls);
+                        int booked = g_dataManager.bookedCount(t.trainNo, cls);
+                        int avail = total - booked;
+                        int fare = g_dataManager.fares().at(cls);
 
-                        ImGui::TableNextColumn();
-                        std::string classesStr;
-                        for (const auto& c : train.classes) {
-                            if (!classesStr.empty()) classesStr += " ";
-                            classesStr += c;
-                        }
-                        ImGui::Text("%s", classesStr.c_str());
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn(); ImGui::Text("%s", cls.c_str());
+                        ImGui::TableNextColumn(); ImGui::Text("%d", total);
+                        ImGui::TableNextColumn(); ImGui::Text("%d", booked);
+                        ImGui::TableNextColumn(); ImGui::Text("%d", avail);
+                        ImGui::TableNextColumn(); ImGui::Text("%d", fare);
                     }
+
                     ImGui::EndTable();
                 }
-                break;
             }
-            case 2: {
-                ImGui::SeparatorText("  SEARCH BY ROUTE  ");
-                ImGui::InputText("From (Station)", g_fromBuf, IM_ARRAYSIZE(g_fromBuf));
-                ImGui::InputText("To (Station)",   g_toBuf,   IM_ARRAYSIZE(g_toBuf));
-                if (ImGui::Button("Search Route")) {
-                    g_searchResults = g_dataManager.searchTrainsByRoute(g_fromBuf, g_toBuf);
-                    if (g_searchResults.empty()) {
-                        showMessagePopup("No trains found for this route.", ImVec4(1, 0.5f, 0.2f, 1.0f));
+        } break;
+
+        // PAGE 4 – BOOK TICKET
+        case 4: {
+            ImGui::SeparatorText(" BOOK TICKET ");
+
+            ImGui::InputText("Passenger Name", g_passengerNameBuf, 256);
+            ImGui::InputText("Age", g_ageBuf, 10);
+
+            ImGui::SeparatorText("Select Train");
+
+            if (ImGui::BeginListBox("##trains", ImVec2(-FLT_MIN, 150))) {
+                for (int i = 0; i < g_trainList.size(); i++) {
+                    bool sel = (g_selectedTrainIdx == i);
+                    if (ImGui::Selectable(g_trainList[i].c_str(), sel)) {
+                        g_selectedTrainIdx = i;
+                        UpdateClassListForTrain(i);
                     }
                 }
-
-                ImGui::Spacing();
-
-                if (ImGui::BeginTable("SearchTable", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-                    ImGui::TableSetupColumn("Train No", ImGuiTableColumnFlags_WidthFixed, 80.0f);
-                    ImGui::TableSetupColumn("Train Name");
-                    ImGui::TableSetupColumn("From", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-                    ImGui::TableSetupColumn("To", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-                    ImGui::TableSetupColumn("Arrival");
-                    ImGui::TableSetupColumn("Departure");
-                    ImGui::TableSetupColumn("Classes");
-                    ImGui::TableHeadersRow();
-
-                    for (const auto& train : g_searchResults) {
-                        ImGui::TableNextRow();
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.trainNo.c_str());
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.trainName.c_str());
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.from.c_str());
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.to.c_str());
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.arr.c_str());
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.dep.c_str());
-
-                        ImGui::TableNextColumn();
-                        std::string classesStr;
-                        for (const auto& c : train.classes) {
-                            if (!classesStr.empty()) classesStr += " ";
-                            classesStr += c;
-                        }
-                        ImGui::Text("%s", classesStr.c_str());
-                    }
-                    ImGui::EndTable();
-                }
-                break;
+                ImGui::EndListBox();
             }
-            case 3: {
-                ImGui::SeparatorText("  SEARCH BY TRAIN NAME  ");
-                ImGui::InputText("Train Name", g_nameSearchBuf, IM_ARRAYSIZE(g_nameSearchBuf));
-                if (ImGui::Button("Search Name")) {
-                    g_searchResults = g_dataManager.searchTrainsByName(g_nameSearchBuf);
-                    if (g_searchResults.empty()) {
-                        showMessagePopup("No train found with that name.", ImVec4(1, 0.5f, 0.2f, 1.0f));
-                    }
-                }
 
-                ImGui::Spacing();
-
-                if (ImGui::BeginTable("NameTable", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-                    ImGui::TableSetupColumn("Train No", ImGuiTableColumnFlags_WidthFixed, 80.0f);
-                    ImGui::TableSetupColumn("Train Name");
-                    ImGui::TableSetupColumn("From");
-                    ImGui::TableSetupColumn("To");
-                    ImGui::TableSetupColumn("Arrival");
-                    ImGui::TableSetupColumn("Departure");
-                    ImGui::TableSetupColumn("Classes");
-                    ImGui::TableHeadersRow();
-
-                    for (const auto& train : g_searchResults) {
-                        ImGui::TableNextRow();
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.trainNo.c_str());
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.trainName.c_str());
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.from.c_str());
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.to.c_str());
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.arr.c_str());
-                        ImGui::TableNextColumn(); ImGui::Text("%s", train.dep.c_str());
-
-                        ImGui::TableNextColumn();
-                        std::string classesStr;
-                        for (const auto& c : train.classes) {
-                            if (!classesStr.empty()) classesStr += " ";
-                            classesStr += c;
-                        }
-                        ImGui::Text("%s", classesStr.c_str());
-                    }
-                    ImGui::EndTable();
-                }
-                break;
+            if (g_selectedTrainIdx >= 0) {
+                auto& t = g_dataManager.trains()[g_selectedTrainIdx];
+                ImGui::Text("Train: %s - %s", t.trainNo.c_str(), t.trainName.c_str());
             }
-            case 4: {
-                ImGui::SeparatorText("  SEAT AVAILABILITY  ");
-                ImGui::InputText("Train Number", g_trainNoAvailBuf, IM_ARRAYSIZE(g_trainNoAvailBuf));
-                if (ImGui::Button("Check Availability")) {
-                    const Train* t = g_dataManager.findTrainByNumber(g_trainNoAvailBuf);
-                    if (t) {
-                        g_availResults = { *t };
-                        showMessagePopup("Availability loaded.", ImVec4(0.3f, 1.0f, 0.3f, 1.0f));
-                    } else {
-                        g_availResults.clear();
-                        showMessagePopup("Train not found.", ImVec4(1, 0.3f, 0.3f, 1.0f));
-                    }
+
+            ImGui::SeparatorText("Select Class");
+
+            for (int i = 0; i < g_classList.size(); i++) {
+                if (ImGui::RadioButton(g_classList[i].c_str(), g_selectedClassIdx == i)) {
+                    g_selectedClassIdx = i;
                 }
-
-                ImGui::Spacing();
-
-                if (!g_availResults.empty()) {
-                    const Train& t = g_availResults[0];
-                    ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f),
-                                       "Train: %s - %s",
-                                       t.trainNo.c_str(), t.trainName.c_str());
-                    ImGui::Text("Route: %s -> %s", t.from.c_str(), t.to.c_str());
-                    ImGui::Text("Departure: %s", t.dep.c_str());
-
-                    ImGui::Spacing();
-
-                    if (ImGui::BeginTable("AvailTable", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-                        ImGui::TableSetupColumn("Class");
-                        ImGui::TableSetupColumn("Total Seats");
-                        ImGui::TableSetupColumn("Booked");
-                        ImGui::TableSetupColumn("Available");
-                        ImGui::TableSetupColumn("Fare (Rs)");
-                        ImGui::TableHeadersRow();
-
-                        for (const auto& cls : t.classes) {
-                            int total  = g_dataManager.seatCapacity().at(cls);
-                            int booked = g_dataManager.bookedCount(t.trainNo, cls);
-                            int avail  = total - booked;
-                            int fare   = g_dataManager.fares().at(cls);
-
-                            ImGui::TableNextRow();
-                            ImGui::TableNextColumn(); ImGui::Text("%s", cls.c_str());
-                            ImGui::TableNextColumn(); ImGui::Text("%d", total);
-                            ImGui::TableNextColumn(); ImGui::Text("%d", booked);
-                            ImGui::TableNextColumn(); ImGui::Text("%d", avail);
-                            ImGui::TableNextColumn(); ImGui::Text("%d", fare);
-                        }
-                        ImGui::EndTable();
-                    }
-                }
-                break;
+                ImGui::SameLine();
             }
-            case 5: {
-                ImGui::SeparatorText("  BOOK TICKET  ");
+            ImGui::NewLine();
 
-                ImGui::InputText("Passenger Name", g_passengerNameBuf, IM_ARRAYSIZE(g_passengerNameBuf));
-                ImGui::InputText("Age", g_ageBuf, IM_ARRAYSIZE(g_ageBuf));
-
-                ImGui::Spacing();
-
-                ImGui::Text("Select Train:");
-                if (ImGui::BeginListBox("##trainlist", ImVec2(-FLT_MIN, 150))) {
-                    for (int i = 0; i < (int)g_trainList.size(); i++) {
-                        const bool is_selected = (g_selectedTrainIdx == i);
-                        if (ImGui::Selectable(g_trainList[i].c_str(), is_selected)) {
-                            g_selectedTrainIdx = i;
-                            UpdateClassListForTrain(i);
-                        }
-                        if (is_selected) ImGui::SetItemDefaultFocus();
-                    }
-                    ImGui::EndListBox();
-                }
-
-                if (g_selectedTrainIdx >= 0) {
-                    const Train& t = g_dataManager.trains()[g_selectedTrainIdx];
-                    ImGui::TextColored(ImVec4(0.8f, 0.85f, 0.2f, 1.0f),
-                                       "Train: %s - %s", t.trainNo.c_str(), t.trainName.c_str());
-                    ImGui::Text("Route: %s -> %s | Departure: %s",
-                                t.from.c_str(), t.to.c_str(), t.dep.c_str());
-                }
-
-                ImGui::Spacing();
-                ImGui::Text("Select Class:");
-
-                for (int i = 0; i < (int)g_classList.size(); i++) {
-                    bool is_selected = (g_selectedClassIdx == i);
-                    if (ImGui::RadioButton(g_classList[i].c_str(), is_selected)) {
-                        g_selectedClassIdx = i;
-                    }
-                    if ((i + 1) % 4 != 0) ImGui::SameLine();
-                }
-
-                ImGui::Spacing();
-
-                if (g_selectedClassIdx >= 0) {
-                    int fare = g_dataManager.fares().at(g_classList[g_selectedClassIdx]);
-                    ImGui::Text("Fare: Rs. %d", fare);
-                    if (g_selectedTrainIdx >= 0) {
-                        const Train& t = g_dataManager.trains()[g_selectedTrainIdx];
-                        int avail = g_dataManager.seatCapacity().at(g_classList[g_selectedClassIdx])
-                                    - g_dataManager.bookedCount(t.trainNo, g_classList[g_selectedClassIdx]);
-                        ImGui::Text("Seats Left: %d", avail);
-                    }
-                }
-
-                ImGui::Spacing();
-
-                if (ImGui::Button("Confirm Booking", ImVec2(200, 0))) {
-                    if (strlen(g_passengerNameBuf) == 0) {
-                        showMessagePopup("Please enter passenger name.", ImVec4(1, 0.3f, 0.3f, 1.0f));
-                    } else {
-                        int age;
-                        try {
-                            age = std::stoi(g_ageBuf);
-                            if (age < 1 || age > 120) throw std::exception();
-                        } catch (...) {
-                            showMessagePopup("Please enter a valid age (1-120).", ImVec4(1, 0.3f, 0.3f, 1.0f));
-                            break;
-                        }
-
-                        if (g_selectedTrainIdx < 0 || g_selectedClassIdx < 0) {
-                            showMessagePopup("Select train and class.", ImVec4(1, 0.3f, 0.3f, 1.0f));
-                            break;
-                        }
-
-                        const Train& t = g_dataManager.trains()[g_selectedTrainIdx];
-                        std::string cls = g_classList[g_selectedClassIdx];
-                        int avail = g_dataManager.seatCapacity().at(cls)
-                                    - g_dataManager.bookedCount(t.trainNo, cls);
-
-                        if (avail <= 0) {
-                            showMessagePopup("No seats available in this class.", ImVec4(1, 0.3f, 0.3f, 1.0f));
-                            break;
-                        }
-
-                        Booking b;
-                        b.pnr       = g_dataManager.generatePNR();
-                        b.name      = g_passengerNameBuf;
-                        b.age       = age;
-                        b.trainNo   = t.trainNo;
-                        b.trainName = t.trainName;
-                        b.classType = cls;
-                        b.seatNo    = g_dataManager.nextSeatNo(t.trainNo, cls);
-                        b.fare      = g_dataManager.fares().at(cls);
-                        b.departure = t.dep;
-
-                        if (g_dataManager.addBooking(b)) {
-                            std::string msg =
-                                "Booking Confirmed!\n"
-                                "PNR: " + b.pnr +
-                                "\nPassenger: " + b.name +
-                                "\nTrain: " + b.trainNo + " - " + b.trainName +
-                                "\nUse 'View Ticket' page for full details.";
-
-                            // Softer blue-green color instead of harsh green
-                            showMessagePopup(msg, ImVec4(0.3f, 0.8f, 1.0f, 1.0f));
-
-                            // Clear form
-                            memset(g_passengerNameBuf, 0, sizeof(g_passengerNameBuf));
-                            strcpy(g_ageBuf, "18");
-                            g_selectedTrainIdx = -1;
-                            g_selectedClassIdx = -1;
-                            g_classList.clear();
-                        } else {
-                            showMessagePopup("Failed to save booking.", ImVec4(1, 0.3f, 0.3f, 1.0f));
-                        }
-                    }
-                }
-                break;
+            if (g_selectedClassIdx >= 0) {
+                auto cls = g_classList[g_selectedClassIdx];
+                int fare = g_dataManager.fares().at(cls);
+                ImGui::Text("Fare: %d", fare);
             }
-            case 6: {
-                ImGui::SeparatorText("  VIEW TICKET  ");
-                ImGui::InputText("Enter PNR", g_pnrViewBuf, IM_ARRAYSIZE(g_pnrViewBuf));
-                if (ImGui::Button("Search Ticket")) {
-                    g_bookingResults = g_dataManager.findBookingsByPNR(g_pnrViewBuf);
-                    if (g_bookingResults.empty()) {
-                        showMessagePopup("No ticket found for this PNR.", ImVec4(1, 0.3f, 0.3f, 1.0f));
-                    }
+
+            if (ImGui::Button("Confirm Booking", ImVec2(200, 0))) {
+                if (strlen(g_passengerNameBuf) == 0) {
+                    showMessagePopup("Enter passenger name.", ImVec4(1, 0.3f, 0.3f, 1));
+                    break;
                 }
 
+                int age = atoi(g_ageBuf);
+                if (age < 1 || age > 120) {
+                    showMessagePopup("Invalid age.", ImVec4(1, 0.3f, 0.3f, 1));
+                    break;
+                }
+
+                if (g_selectedTrainIdx < 0 || g_selectedClassIdx < 0) {
+                    showMessagePopup("Select train & class.", ImVec4(1, 0.3f, 0.3f, 1));
+                    break;
+                }
+
+                auto& t = g_dataManager.trains()[g_selectedTrainIdx];
+                auto cls = g_classList[g_selectedClassIdx];
+                int avail =
+                    g_dataManager.seatCapacity().at(cls) -
+                    g_dataManager.bookedCount(t.trainNo, cls);
+
+                if (avail <= 0) {
+                    showMessagePopup("No seats available.", ImVec4(1, 0.3f, 0.3f, 1));
+                    break;
+                }
+
+                Booking b;
+                b.pnr       = g_dataManager.generatePNR();
+                b.name      = g_passengerNameBuf;
+                b.age       = age;
+                b.trainNo   = t.trainNo;
+                b.trainName = t.trainName;
+                b.classType = cls;
+                b.seatNo    = g_dataManager.nextSeatNo(t.trainNo, cls);
+                b.fare      = g_dataManager.fares().at(cls);
+                b.departure = t.dep;
+
+                if (g_dataManager.addBooking(b)) {
+                    showMessagePopup("Booking confirmed!", ImVec4(0.2f, 1, 0.4f, 1));
+
+                    memset(g_passengerNameBuf, 0, sizeof(g_passengerNameBuf));
+                    strcpy(g_ageBuf, "18");
+                    g_selectedTrainIdx = -1;
+                    g_selectedClassIdx = -1;
+                    g_classList.clear();
+                }
+            }
+        } break;
+
+        // PAGE 5 – VIEW TICKET
+        case 5: {
+            ImGui::SeparatorText(" VIEW TICKET ");
+            ImGui::InputText("Enter PNR", g_pnrViewBuf, 256);
+
+            if (ImGui::Button("Search")) {
+                g_bookingResults = g_dataManager.findBookingsByPNR(g_pnrViewBuf);
+                if (g_bookingResults.empty()) {
+                    showMessagePopup("Ticket not found.", ImVec4(1, 0.3f, 0.3f, 1));
+                }
+            }
+
+            if (!g_bookingResults.empty()) {
+                auto& b = g_bookingResults[0];
+
+                ImGui::BeginChild("TicketCard", ImVec2(0, 0), true);
+                ImGui::TextColored(ImVec4(0.4f, 1, 1, 1), "Ticket Details");
+                ImGui::Separator();
+                ImGui::Text("PNR: %s", b.pnr.c_str());
+                ImGui::Text("Name: %s (Age: %d)", b.name.c_str(), b.age);
+                ImGui::Text("Train: %s - %s", b.trainNo.c_str(), b.trainName.c_str());
+                ImGui::Text("Class: %s", b.classType.c_str());
+                ImGui::Text("Seat: %d", b.seatNo);
+                ImGui::Text("Fare: Rs %d", b.fare);
+                ImGui::Text("Departure: %s", b.departure.c_str());
+                ImGui::EndChild();
+            }
+        } break;
+
+        // PAGE 6 – CANCEL TICKET
+        case 6: {
+            ImGui::SeparatorText(" CANCEL TICKET ");
+
+            ImGui::InputText("Enter PNR", g_pnrCancelBuf, 256);
+
+            if (ImGui::Button("Find")) {
+                g_bookingResults = g_dataManager.findBookingsByPNR(g_pnrCancelBuf);
+                if (g_bookingResults.empty()) {
+                    showMessagePopup("Ticket not found.", ImVec4(1, 0.3f, 0.3f, 1));
+                }
+            }
+
+            if (!g_bookingResults.empty()) {
+                auto& b = g_bookingResults[0];
+
+                ImGui::BeginChild("CancelCard", ImVec2(0, 0), true);
+                ImGui::Text("PNR: %s", b.pnr.c_str());
+                ImGui::Text("Passenger: %s (%d)", b.name.c_str(), b.age);
+                ImGui::Text("Train: %s - %s", b.trainNo.c_str(), b.trainName.c_str());
+                ImGui::Text("Class: %s", b.classType.c_str());
                 ImGui::Spacing();
 
-                if (!g_bookingResults.empty()) {
-                    const Booking& b = g_bookingResults[0];
-
-                    ImGui::BeginChild("TicketCard", ImVec2(0, 0), true);
-                    ImGui::TextColored(ImVec4(0.3f, 1.0f, 1.0f, 1.0f), "Ticket Details");
-                    ImGui::Separator();
-                    ImGui::Text("PNR: %s", b.pnr.c_str());
-                    ImGui::Text("Name: %s (Age: %d)", b.name.c_str(), b.age);
-                    ImGui::Text("Train: %s - %s", b.trainNo.c_str(), b.trainName.c_str());
-                    ImGui::Text("Class: %s  Seat: %d", b.classType.c_str(), b.seatNo);
-                    ImGui::Text("Fare: Rs. %d", b.fare);
-                    ImGui::Text("Departure: %s", b.departure.c_str());
-                    ImGui::EndChild();
-                }
-                break;
-            }
-            case 7: {
-                ImGui::SeparatorText("  CANCEL TICKET  ");
-                ImGui::InputText("Enter PNR", g_pnrCancelBuf, IM_ARRAYSIZE(g_pnrCancelBuf));
-                if (ImGui::Button("Find Ticket")) {
-                    g_bookingResults = g_dataManager.findBookingsByPNR(g_pnrCancelBuf);
-                    if (g_bookingResults.empty()) {
-                        showMessagePopup("No ticket found for this PNR.", ImVec4(1, 0.3f, 0.3f, 1.0f));
+                if (ImGui::Button("Confirm Cancellation", ImVec2(240, 0))) {
+                    if (g_dataManager.cancelBooking(b.pnr, nullptr)) {
+                        showMessagePopup("Ticket cancelled.", ImVec4(0.2f, 1, 0.3f, 1));
+                        memset(g_pnrCancelBuf, 0, sizeof(g_pnrCancelBuf));
+                        g_bookingResults.clear();
                     }
                 }
 
-                ImGui::Spacing();
-
-                if (!g_bookingResults.empty()) {
-                    const Booking& b = g_bookingResults[0];
-
-                    ImGui::BeginChild("CancelCard", ImVec2(0, 0), true);
-                    ImGui::TextColored(ImVec4(0.3f, 1.0f, 1.0f, 1.0f), "Ticket Found");
-                    ImGui::Separator();
-                    ImGui::Text("PNR: %s", b.pnr.c_str());
-                    ImGui::Text("Name: %s (Age: %d)", b.name.c_str(), b.age);
-                    ImGui::Text("Train: %s - %s", b.trainNo.c_str(), b.trainName.c_str());
-                    ImGui::Text("Class: %s  Seat: %d", b.classType.c_str(), b.seatNo);
-                    ImGui::Text("Fare: Rs. %d", b.fare);
-                    ImGui::Text("Departure: %s", b.departure.c_str());
-                    ImGui::Spacing();
-
-                    if (ImGui::Button("Confirm Cancellation", ImVec2(220, 0))) {
-                        Booking removed;
-                        if (g_dataManager.cancelBooking(b.pnr, &removed)) {
-                            showMessagePopup("Ticket cancelled successfully.", ImVec4(0.3f, 1.0f, 0.3f, 1.0f));
-                            memset(g_pnrCancelBuf, 0, sizeof(g_pnrCancelBuf));
-                            g_bookingResults.clear();
-                        } else {
-                            showMessagePopup("Failed to cancel ticket.", ImVec4(1, 0.3f, 0.3f, 1.0f));
-                        }
-                    }
-
-                    ImGui::EndChild();
-                }
-                break;
+                ImGui::EndChild();
             }
+        } break;
+
         }
 
-        ImGui::EndChild(); // Content
+        ImGui::EndChild();
 
-        // Footer
-        ImGui::SetCursorPosY(viewport->Size.y - footerHeight);
+        // FOOTER
+        ImGui::SetCursorPosY(vp->Size.y - 35);
         ImGui::Separator();
-        ImGui::TextDisabled("Smart Reservation Panel  |  Please keep your luggage safe during travel.");
+        ImGui::TextDisabled("Smart Reservation Panel  |  Keep luggage safe while travelling.");
 
-        ImGui::End(); // Main window
+        ImGui::End();
 
-        // Message popup
+        // Popup
         if (g_showMsgPopup) {
             ImGui::OpenPopup("Message");
             g_showMsgPopup = false;
         }
+
         if (ImGui::BeginPopupModal("Message", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::TextColored(g_msgColor, "%s", g_message.c_str());
-            ImGui::Spacing();
             if (ImGui::Button("OK", ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
         }
 
-        // Rendering
+        // Render
         ImGui::Render();
-        glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
-        glClearColor(0.05f, 0.06f, 0.10f, 1.0f); // darker, bluish theme
+        glViewport(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+        glClearColor(0.05f, 0.06f, 0.10f, 1);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         SDL_GL_SwapWindow(window);
@@ -624,11 +510,9 @@ int main(int argc, char* argv[]) {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
-
     SDL_GL_DeleteContext(gl_context);
     SDL_DestroyWindow(window);
     SDL_Quit();
-
     return 0;
 }
 
@@ -639,42 +523,16 @@ void showMessagePopup(const std::string& msg, const ImVec4& color) {
 }
 
 void SetupImGuiStyle() {
-    ImGuiStyle& style = ImGui::GetStyle();
+    ImGuiStyle& s = ImGui::GetStyle();
+    s.WindowRounding = 8;
+    s.ChildRounding = 8;
+    s.FrameRounding = 6;
 
-    style.WindowRounding = 8.0f;
-    style.ChildRounding  = 8.0f;
-    style.FrameRounding  = 6.0f;
-    style.ScrollbarRounding = 6.0f;
-    style.GrabRounding   = 6.0f;
-    style.TabRounding    = 6.0f;
-
-    style.WindowBorderSize = 0.0f;
-    style.FrameBorderSize  = 0.0f;
-
-    ImVec4* colors = style.Colors;
-    colors[ImGuiCol_WindowBg]            = ImVec4(0.06f, 0.07f, 0.12f, 1.0f);
-    colors[ImGuiCol_ChildBg]             = ImVec4(0.07f, 0.08f, 0.13f, 1.0f);
-    colors[ImGuiCol_Header]              = ImVec4(0.20f, 0.36f, 0.72f, 0.75f);
-    colors[ImGuiCol_HeaderHovered]       = ImVec4(0.25f, 0.45f, 0.85f, 0.86f);
-    colors[ImGuiCol_HeaderActive]        = ImVec4(0.30f, 0.52f, 0.90f, 1.00f);
-
-    colors[ImGuiCol_Button]              = ImVec4(0.18f, 0.30f, 0.55f, 1.00f);
-    colors[ImGuiCol_ButtonHovered]       = ImVec4(0.24f, 0.40f, 0.75f, 1.00f);
-    colors[ImGuiCol_ButtonActive]        = ImVec4(0.30f, 0.50f, 0.90f, 1.00f);
-
-    colors[ImGuiCol_FrameBg]             = ImVec4(0.10f, 0.12f, 0.18f, 1.00f);
-    colors[ImGuiCol_FrameBgHovered]      = ImVec4(0.18f, 0.30f, 0.55f, 1.00f);
-    colors[ImGuiCol_FrameBgActive]       = ImVec4(0.22f, 0.38f, 0.70f, 1.00f);
-
-    colors[ImGuiCol_TitleBg]             = ImVec4(0.05f, 0.06f, 0.10f, 1.00f);
-    colors[ImGuiCol_TitleBgActive]       = ImVec4(0.10f, 0.12f, 0.18f, 1.00f);
-
-    colors[ImGuiCol_Tab]                 = ImVec4(0.12f, 0.16f, 0.25f, 1.00f);
-    colors[ImGuiCol_TabHovered]          = ImVec4(0.25f, 0.40f, 0.75f, 1.00f);
-    colors[ImGuiCol_TabActive]           = ImVec4(0.20f, 0.32f, 0.60f, 1.00f);
-
-    colors[ImGuiCol_Separator]           = ImVec4(0.30f, 0.35f, 0.50f, 1.00f);
-    colors[ImGuiCol_Border]              = ImVec4(0.20f, 0.22f, 0.32f, 1.00f);
-    colors[ImGuiCol_Text]                = ImVec4(0.90f, 0.93f, 0.97f, 1.00f);
-    colors[ImGuiCol_TextDisabled]        = ImVec4(0.55f, 0.60f, 0.70f, 1.00f);
+    ImVec4* c = s.Colors;
+    c[ImGuiCol_WindowBg] = ImVec4(0.06f, 0.07f, 0.12f, 1);
+    c[ImGuiCol_ChildBg]  = ImVec4(0.07f, 0.08f, 0.13f, 1);
+    c[ImGuiCol_Button]   = ImVec4(0.18f, 0.30f, 0.55f, 1);
+    c[ImGuiCol_ButtonHovered] = ImVec4(0.24f, 0.40f, 0.75f, 1);
+    c[ImGuiCol_Text] = ImVec4(0.9f, 0.93f, 0.97f, 1);
+    c[ImGuiCol_TextDisabled] = ImVec4(0.6f, 0.65f, 0.75f, 1);
 }

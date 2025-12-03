@@ -1,0 +1,68 @@
+===========================
+BUILD & RUN INSTRUCTIONS
+===========================
+
+1️⃣  OPEN MSYS2 MinGW64 TERMINAL
+--------------------------------
+Open:
+MSYS2 MinGW64
+(NOT PowerShell or CMD)
+
+2️⃣  GO TO PROJECT DIRECTORY
+--------------------------------
+cd "/c/Users/hp/OneDrive/Desktop/Train Ticket Reservation System"
+
+Check files:
+ls
+
+You must see:
+main.cpp
+datamanager.cpp
+imgui/
+SDL2/
+train.csv
+booking.csv
+train.h
+booking.h
+...
+
+3️⃣  COMPILATION COMMAND
+--------------------------------
+Use this exact command to build train.exe:
+
+g++ main.cpp imgui/*.cpp datamanager.cpp \
+  -I./SDL2/SDL2 -I./imgui \
+  -L./SDL2/lib \
+  -lmingw32 -lSDL2main -lSDL2 -lopengl32 -lgdi32 -lwinmm \
+  -static-libgcc -static-libstdc++ \
+  -o train.exe
+
+This command:
+✔ compiles main.cpp  
+✔ compiles imgui files  
+✔ compiles datamanager.cpp  
+✔ links SDL2, OpenGL, WinMM, GDI  
+✔ produces train.exe  
+
+4️⃣  RUN PROJECT
+--------------------------------
+./train.exe
+
+If fullscreen error occurs, press:
+ALT + ENTER  (to toggle fullscreen)
+
+5️⃣  CHECK VERSION OF g++
+--------------------------------
+g++ --version
+
+6️⃣  NOTES
+--------------------------------
+• Always run from MSYS2 MinGW64 terminal  
+• PowerShell & CMD will NOT compile SDL2 projects  
+• Make sure SDL2.dll is in the same folder as train.exe  
+• Use ls to verify files  
+• If imgui or SDL paths change, update include (-I) and lib (-L) paths  
+
+===========================
+END OF FILE
+===========================

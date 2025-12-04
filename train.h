@@ -3,16 +3,24 @@
 
 #include <string>
 #include <set>
+using std::string;
+using std::set;
 
+// Structure to store train information
 struct Train {
-    std::string trainNo;
-    std::string trainName;
-    std::string from;
-    std::string to;
-    std::string arr;
-    std::string dep;
-    std::string stop;
-    std::set<std::string> classes; // e.g. {"1A","2A","3A","SL"}
+    string trainNo;
+    string trainName;
+
+    string from;
+    string to;
+
+    string arr;
+    string dep;
+
+    string stop;
+
+    // Example: {"1A", "2A", "3A", "SL"}
+    set<string> classes;
 };
 
 #endif // TRAIN_H

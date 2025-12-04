@@ -1,9 +1,14 @@
 #ifndef DATAMANAGER_H
 #define DATAMANAGER_H
 
+#include <string>
 #include <vector>
 #include <map>
-#include <string>
+
+using std::string;
+using std::vector;
+using std::map;
+
 #include "train.h"
 #include "booking.h"
 
@@ -11,44 +16,47 @@ class DataManager {
 public:
     DataManager();
 
-    void setTrainFilePath(const std::string &path);
-    void setBookingFilePath(const std::string &path);
+    void setTrainFilePath(const string &path);
+    void setBookingFilePath(const string &path);
 
     bool loadTrains();
     bool loadBookings();
     bool saveBookings() const;
 
-    const std::vector<Train> &trains() const { return m_trains; }
-    const std::vector<Booking> &bookings() const { return m_bookings; }
+    const vector<Train>& trains() const { return m_trains; }
+    const vector<Booking>& bookings() const { return m_bookings; }
 
-    std::vector<Train> searchTrainsByRoute(const std::string &from, const std::string &to) const;
-    std::vector<Train> searchTrainsByName(const std::string &namePart) const;
-    const Train *findTrainByNumber(const std::string &trainNo) const;
-    std::vector<Booking> findBookingsByPNR(const std::string &pnr) const;
+    vector<Train> searchTrainsByRoute(const string &from, const string &to) const;
+    vector<Train> searchTrainsByName(const string &namePart) const;
+    const Train* findTrainByNumber(const string &trainNo) const;
 
-    int bookedCount(const std::string &trainNo, const std::string &classType) const;
-    int nextSeatNo(const std::string &trainNo, const std::string &classType) const;
-    std::string generatePNR() const;
+    vector<Booking> findBookingsByPNR(const string &pnr) const;
 
-    const std::map<std::string, int> &seatCapacity() const { return m_seatCapacity; }
-    const std::map<std::string, int> &fares() const { return m_fares; }
+    int bookedCount(const string &trainNo, const string &classType) const;
+    int nextSeatNo(const string &trainNo, const string &classType) const;
+
+    string generatePNR() const;
+
+    const map<string, int>& seatCapacity() const { return m_seatCapacity; }
+    const map<string, int>& fares() const { return m_fares; }
 
     bool addBooking(const Booking &booking);
-    bool cancelBooking(const std::string &pnr, Booking *removed = nullptr);
+    bool cancelBooking(const string &pnr, Booking *removed = nullptr);
 
 private:
-    std::string m_trainFilePath;
-    std::string m_bookingFilePath;
-    std::vector<Train> m_trains;
-    std::vector<Booking> m_bookings;
+    string m_trainFilePath;
+    string m_bookingFilePath;
 
-    std::map<std::string, int> m_seatCapacity;
-    std::map<std::string, int> m_fares;
+    vector<Train>   m_trains;
+    vector<Booking> m_bookings;
 
-    std::vector<std::string> split(const std::string &s, char delim) const;
-    std::string trim(const std::string &s) const;
-    std::string toUpper(const std::string &s) const;
-    std::string toLower(const std::string &s) const;
+    map<string, int> m_seatCapacity;
+    map<string, int> m_fares;
+
+    vector<string> split(const string &s, char delim) const;
+    string trim(const string &s) const;
+    string toUpper(const string &s) const;
+    string toLower(const string &s) const;
 };
 
-#endif // DATAMANAGER_H
+#endif

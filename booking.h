@@ -2,17 +2,22 @@
 #define BOOKING_H
 
 #include <string>
+using std::string;
 
+// Simple POD structure to store booking details
 struct Booking {
-    std::string pnr;
-    std::string name;
+    string pnr;
+    string name;
     int age = 0;
-    std::string trainNo;
-    std::string trainName;
-    std::string classType;
+
+    string trainNo;
+    string trainName;
+
+    string classType;
     int seatNo = 0;
+
     int fare = 0;
-    std::string departure;
+    string departure;
 };
 
 #endif // BOOKING_H

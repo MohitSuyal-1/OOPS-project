@@ -1,266 +1,266 @@
-#include "datamanager.h"
-
+#include <iostream>
 #include <fstream>
 #include <sstream>
+#include <vector>
+#include <map>
+#include <set>
 #include <algorithm>
-#include <random>
+#include <cstdlib>
 #include <ctime>
+using namespace std;
 
-using std::string;
-using std::vector;
-using std::ifstream;
-using std::ofstream;
-using std::stringstream;
+// -------------------- TRAIN STRUCT --------------------
+struct Train {
+    string trainNo;
+    string trainName;
+    string from;
+    string to;
+    string arr;
+    string dep;
+    string stop;
+    set<string> classes;
+};
 
-// ------------------------------------------------------
-// Constructor – Initialize Seats & Fares
-// ------------------------------------------------------
-DataManager::DataManager() {
-    m_seatCapacity = {
-        {"1A", 20}, {"2A", 40}, {"3A", 60}, {"3E", 70},
-        {"SL", 120}, {"CC", 80}, {"2S", 100}
-    };
+// -------------------- BOOKING STRUCT --------------------
+struct Booking {
+    string pnr;
+    string name;
+    int age;
+    string trainNo;
+    string trainName;
+    string classType;
+    int seatNo;
+    int fare;
+    string departure;
+};
 
-    m_fares = {
-        {"1A", 2000}, {"2A", 1500}, {"3A", 1100}, {"3E", 900},
-        {"SL", 400}, {"CC", 700}, {"2S", 300}
-    };
-}
+// -------------------- DATABASE CLASS --------------------
+class Database {
+public:
+    vector<Train> trains;
+    vector<Booking> bookings;
+    map<string, int> seatCapacity;
+    map<string, int> fares;
 
-// ------------------------------------------------------
-// File Path Setters
-// ------------------------------------------------------
-void DataManager::setTrainFilePath(const string &path) {
-    m_trainFilePath = path;
-}
+    string trainFile;
+    string bookingFile;
 
-void DataManager::setBookingFilePath(const string &path) {
-    m_bookingFilePath = path;
-}
+    Database() {
+        trainFile = "trains.csv";
+        bookingFile = "bookings.csv";
 
-// ------------------------------------------------------
-// Utility Functions
-// ------------------------------------------------------
-vector<string> DataManager::split(const string &s, char delim) const {
-    vector<string> result;
-    stringstream ss(s);
-    string item;
+        seatCapacity["1A"] = 20;
+        seatCapacity["2A"] = 40;
+        seatCapacity["3A"] = 60;
+        seatCapacity["3E"] = 70;
+        seatCapacity["SL"] = 120;
+        seatCapacity["CC"] = 80;
+        seatCapacity["2S"] = 100;
 
-    while (getline(ss, item, delim)) {
-        result.push_back(item);
+        fares["1A"] = 2000;
+        fares["2A"] = 1500;
+        fares["3A"] = 1100;
+        fares["3E"] = 900;
+        fares["SL"] = 400;
+        fares["CC"] = 700;
+        fares["2S"] = 300;
+
+        srand(time(0));
     }
-    return result;
-}
 
-string DataManager::trim(const string &s) const {
-    size_t start = s.find_first_not_of(" \t\r\n");
-    if (start == string::npos) return "";
-
-    size_t end = s.find_last_not_of(" \t\r\n");
-    return s.substr(start, end - start + 1);
-}
-
-string DataManager::toUpper(const string &s) const {
-    string result = s;
-    std::transform(result.begin(), result.end(), result.begin(), ::toupper);
-    return result;
-}
-
-string DataManager::toLower(const string &s) const {
-    string result = s;
-    std::transform(result.begin(), result.end(), result.begin(), ::tolower);
-    return result;
-}
-
-// ------------------------------------------------------
-// Load Trains from CSV
-// ------------------------------------------------------
-bool DataManager::loadTrains() {
-    m_trains.clear();
-
-    ifstream file(m_trainFilePath);
-    if (!file.is_open()) return false;
-
-    string line;
-    bool first = true;
-
-    while (getline(file, line)) {
-        line = trim(line);
-        if (line.empty()) continue;
-
-        if (first) {
-            first = false;  // Skip CSV header
-            continue;
-        }
-
-        vector<string> parts = split(line, ',');
-        if (parts.size() < 8) continue;
-
-        Train t;
-        t.trainNo   = trim(parts[0]);
-        t.trainName = trim(parts[1]);
-        t.from      = trim(parts[2]);
-        t.to        = trim(parts[3]);
-        t.arr       = trim(parts[4]);
-        t.dep       = trim(parts[5]);
-        t.stop      = trim(parts[6]);
-
-        // Parse class list ("1A 2A 3A SL")
-        stringstream ss(trim(parts[7]));
-        string token;
-        while (ss >> token) {
-            t.classes.insert(trim(token));
-        }
-
-        m_trains.push_back(t);
+    // Trim spaces
+    string trim(string s) {
+        int start = s.find_first_not_of(" \t\r\n");
+        if (start == string::npos) return "";
+        int end = s.find_last_not_of(" \t\r\n");
+        return s.substr(start, end - start + 1);
     }
-    return true;
-}
 
-// ------------------------------------------------------
-// Load Bookings from CSV
-// ------------------------------------------------------
-bool DataManager::loadBookings() {
-    m_bookings.clear();
-
-    ifstream file(m_bookingFilePath);
-    if (!file.is_open()) return true;  // No bookings yet
-
-    string line;
-    bool first = true;
-
-    while (getline(file, line)) {
-        line = trim(line);
-        if (line.empty()) continue;
-
-        if (first) {
-            if (line.rfind("pnr", 0) == 0) { // header
-                first = false;
-                continue;
+    // Split line by delimiter
+    vector<string> split(string line, char d) {
+        vector<string> result;
+        string word = "";
+        for (int i = 0; i < (int)line.size(); i++) {
+            if (line[i] == d) {
+                result.push_back(trim(word));
+                word = "";
+            } else {
+                word += line[i];
             }
-            first = false;
         }
-
-        vector<string> parts = split(line, ',');
-        if (parts.size() < 9) continue;
-
-        Booking b;
-        b.pnr        = trim(parts[0]);
-        b.name       = trim(parts[1]);
-        b.age        = stoi(trim(parts[2]));
-        b.trainNo    = trim(parts[3]);
-        b.trainName  = trim(parts[4]);
-        b.classType  = trim(parts[5]);
-        b.seatNo     = stoi(trim(parts[6]));
-        b.fare       = stoi(trim(parts[7]));
-        b.departure  = trim(parts[8]);
-
-        m_bookings.push_back(b);
-    }
-    return true;
-}
-
-// ------------------------------------------------------
-// Save Bookings to CSV
-// ------------------------------------------------------
-bool DataManager::saveBookings() const {
-    ofstream file(m_bookingFilePath);
-    if (!file.is_open()) return false;
-
-    file << "pnr,name,age,trainNo,trainName,classType,seatNo,fare,departure\n";
-
-    for (const Booking &b : m_bookings) {
-        file << b.pnr << ","
-             << b.name << ","
-             << b.age << ","
-             << b.trainNo << ","
-             << b.trainName << ","
-             << b.classType << ","
-             << b.seatNo << ","
-             << b.fare << ","
-             << b.departure << "\n";
+        result.push_back(trim(word));
+        return result;
     }
 
-    return true;
-}
-
-// ------------------------------------------------------
-// Search Functions
-// ------------------------------------------------------
-vector<Train> DataManager::searchTrainsByRoute(const string &from, const string &to) const {
-    vector<Train> result;
-    string f = toUpper(from);
-    string t = toUpper(to);
-
-    for (const Train &tr : m_trains) {
-        if (toUpper(tr.from) == f && toUpper(tr.to) == t)
-            result.push_back(tr);
-    }
-    return result;
-}
-
-vector<Train> DataManager::searchTrainsByName(const string &namePart) const {
-    vector<Train> result;
-    string key = toLower(namePart);
-
-    for (const Train &tr : m_trains) {
-        if (toLower(tr.trainName).find(key) != string::npos)
-            result.push_back(tr);
-    }
-    return result;
-}
-
-const Train* DataManager::findTrainByNumber(const string &trainNo) const {
-    for (const Train &t : m_trains) {
-        if (t.trainNo == trainNo)
-            return &t;
-    }
-    return nullptr;
-}
-
-// ------------------------------------------------------
-// Booking Management
-// ------------------------------------------------------
-vector<Booking> DataManager::findBookingsByPNR(const string &pnr) const {
-    vector<Booking> result;
-    for (const Booking &b : m_bookings) {
-        if (b.pnr == pnr)
-            result.push_back(b);
-    }
-    return result;
-}
-
-int DataManager::bookedCount(const string &trainNo, const string &classType) const {
-    int count = 0;
-    for (const Booking &b : m_bookings) {
-        if (b.trainNo == trainNo && b.classType == classType)
-            count++;
-    }
-    return count;
-}
-
-int DataManager::nextSeatNo(const string &trainNo, const string &classType) const {
-    return bookedCount(trainNo, classType) + 1;
-}
-
-string DataManager::generatePNR() const {
-    static std::mt19937 rng((unsigned)time(nullptr));
-    std::uniform_int_distribution<int> dist(100000, 999999);
-    return std::to_string(dist(rng));
-}
-
-bool DataManager::addBooking(const Booking &booking) {
-    m_bookings.push_back(booking);
-    return saveBookings();
-}
-
-bool DataManager::cancelBooking(const string &pnr, Booking *removed) {
-    for (auto it = m_bookings.begin(); it != m_bookings.end(); ++it) {
-        if (it->pnr == pnr) {
-            if (removed) *removed = *it;
-            m_bookings.erase(it);
-            return saveBookings();
+    string toLower(string s) {
+        for (int i = 0; i < (int)s.size(); i++) {
+            s[i] = tolower(s[i]);
         }
+        return s;
     }
-    return false;
+
+    // ---------------- LOAD TRAINS ----------------
+    bool loadTrains() {
+        trains.clear();
+        ifstream file(trainFile.c_str());
+        if (!file.is_open()) return false;
+
+        string line;
+        bool skip = true;
+
+        while (getline(file, line)) {
+            if (skip) { skip = false; continue; }
+            if (line == "") continue;
+
+            vector<string> p = split(line, ',');
+            if (p.size() < 8) continue;
+
+            Train t;
+            t.trainNo = p[0];
+            t.trainName = p[1];
+            t.from = p[2];
+            t.to = p[3];
+            t.arr = p[4];
+            t.dep = p[5];
+            t.stop = p[6];
+
+            stringstream ss(p[7]);
+            string c;
+            while (ss >> c) {
+                t.classes.insert(c);
+            }
+
+            trains.push_back(t);
+        }
+        return true;
+    }
+
+    // ---------------- LOAD BOOKINGS ----------------
+    bool loadBookings() {
+        bookings.clear();
+        ifstream file(bookingFile.c_str());
+        if (!file.is_open()) return true;
+
+        string line;
+        bool skip = true;
+
+        while (getline(file, line)) {
+            if (skip) { skip = false; continue; }
+            if (line == "") continue;
+
+            vector<string> p = split(line, ',');
+            if (p.size() < 9) continue;
+
+            Booking b;
+            b.pnr = p[0];
+            b.name = p[1];
+            b.age = atoi(p[2].c_str());
+            b.trainNo = p[3];
+            b.trainName = p[4];
+            b.classType = p[5];
+            b.seatNo = atoi(p[6].c_str());
+            b.fare = atoi(p[7].c_str());
+            b.departure = p[8];
+
+            bookings.push_back(b);
+        }
+        return true;
+    }
+
+    // ---------------- SAVE BOOKINGS ----------------
+    bool saveBookings() {
+        ofstream file(bookingFile.c_str());
+        if (!file.is_open()) return false;
+
+        file << "pnr,name,age,trainNo,trainName,classType,seatNo,fare,departure\n";
+
+        for (int i = 0; i < bookings.size(); i++) {
+            Booking b = bookings[i];
+            file << b.pnr << "," 
+                 << b.name << "," 
+                 << b.age << ","
+                 << b.trainNo << "," 
+                 << b.trainName << ","
+                 << b.classType << "," 
+                 << b.seatNo << "," 
+                 << b.fare << ","
+                 << b.departure << "\n";
+        }
+        return true;
+    }
+
+    // ---------------- SEARCH BY NAME ----------------
+    vector<Train> searchByName(string key) {
+        vector<Train> result;
+        string low = toLower(key);
+
+        for (int i = 0; i < trains.size(); i++) {
+            string name = toLower(trains[i].trainName);
+            if (name.find(low) != string::npos) {
+                result.push_back(trains[i]);
+            }
+        }
+        return result;
+    }
+
+    // ---------------- FIND BY NUMBER ----------------
+    const Train* findByNumber(string no) {
+        for (int i = 0; i < trains.size(); i++) {
+            if (trains[i].trainNo == no) {
+                return &trains[i];
+            }
+        }
+        return NULL;
+    }
+
+    // ---------------- BOOKED COUNT ----------------
+    int bookedCount(string trainNo, string cls) {
+        int count = 0;
+        for (int i = 0; i < bookings.size(); i++) {
+            if (bookings[i].trainNo == trainNo &&
+                bookings[i].classType == cls) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    int nextSeat(string trainNo, string cls) {
+        return bookedCount(trainNo, cls) + 1;
+    }
+
+    // ---------------- SIMPLE PNR GENERATOR ----------------
+    string generatePNR() {
+        int r = rand() % 900000 + 100000;
+        stringstream ss;
+        ss << r;
+        return ss.str();
+    }
+
+    // ---------------- ADD BOOKING ----------------
+    bool addBooking(Booking b) {
+        bookings.push_back(b);
+        return saveBookings();
+    }
+
+    // ---------------- CANCEL BOOKING ----------------
+    bool cancel(string pnr) {
+        for (int i = 0; i < bookings.size(); i++) {
+            if (bookings[i].pnr == pnr) {
+                bookings.erase(bookings.begin() + i);
+                return saveBookings();
+            }
+        }
+        return false;
+    }
+};
+
+// -------------------- MAIN --------------------
+int main() {
+    Database db;
+    db.loadTrains();
+    db.loadBookings();
+
+    cout << "Database Loaded Successfully.\n";
+    return 0;
 }

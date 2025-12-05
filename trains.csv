@@ -1,0 +1,15 @@
+Train No,Train Name,From,To,Arrival,Departure,Stop,Classes
+12039,New Delhi - Kathgodam Shatabdi,New Delhi,Kathgodam,11:40,06:20,Major,1A 2A CC
+15013,Ranikhet Express,Jaisalmer,Kathgodam,05:05,20:35,Major,1A 2A 3A SL
+12209,Kanpur Garib Rath,Kanpur Central,New Delhi,07:00,22:15,Major,3A 3E CC
+12230,Lucknow Mail,Lucknow,New Delhi,06:50,22:00,Major,1A 2A 3A SL
+12401,NDD Express,Nautanwa,Ramnagar,18:00,17:30,NA,1A 2A 3A SL CC
+12501,KGM Express,Kathgodam,Gorakhpur,15:00,14:30,NA,2A 3A SL
+12301,KK Express,Delhi,Kashmir,10:00,09:30,NA,1A 2A 3A SL
+12951,Mumbai - New Delhi Rajdhani,Mumbai Central,New Delhi,08:35,16:35,Major,1A 2A 3A
+12235,Mumbai - Nagpur Duronto,Mumbai Central,Nagpur,07:20,20:15,Major,1A 2A 3A SL
+22823,Bhubaneswar - New Delhi Rajdhani,Bhubaneswar,New Delhi,10:45,17:10,Major,1A 2A 3A
+12627,Karnataka Express,Bengaluru,New Delhi,11:30,19:20,Major,1A 2A 3A SL 2S
+12616,Grand Trunk Express,Chennai,New Delhi,06:05,18:40,Major,1A 2A 3A SL 2S
+22691,Bangalore - Hazrat Nizamuddin Rajdhani,Bengaluru,Hazrat Nizamuddin,06:40,20:00,Major,1A 2A 3A
+12002,Bhopal Shatabdi,Bhopal,New Delhi,10:40,06:00,Major,1A 2A CC
